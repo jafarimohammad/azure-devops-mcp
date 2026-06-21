@@ -80,11 +80,19 @@ export class AzureDevOpsClient {
       body = typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body);
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+
     let res: Response;
     try {
-      res = await fetch(url, { method, headers, body });
+      res = await fetch(url, { method, headers, body, signal: controller.signal });
     } catch (err) {
-      throw new Error(`Network error calling ${method} ${url}: ${(err as Error).message}`);
+      const msg = (err as Error).name === "AbortError"
+        ? `Request timed out after 30s calling ${method} ${url}`
+        : `Network error calling ${method} ${url}: ${(err as Error).message}`;
+      throw new Error(msg);
+    } finally {
+      clearTimeout(timeout);
     }
 
     const text = await res.text();

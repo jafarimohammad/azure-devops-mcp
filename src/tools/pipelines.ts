@@ -3,11 +3,6 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AzureDevOpsClient } from "../azureClient.js";
 import { projectArg, jsonResult, errorResult } from "./helpers.js";
 
-/**
- * Registers Pipelines and Build tools.
- * Uses both the newer /_apis/pipelines endpoints and the classic
- * /_apis/build/builds endpoints, since Azure DevOps Server 2022 exposes both.
- */
 export function registerPipelineTools(server: McpServer, client: AzureDevOpsClient) {
   server.registerTool(
     "get_last_build",
@@ -27,10 +22,15 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           .optional()
           .describe("Filter by pipeline name (partial, case-insensitive). Omit to get the last build across all pipelines."),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project, pipelineName }) => {
       try {
-        // First get the list of builds sorted by queue time descending.
         const data = await client.request("_apis/build/builds", {
           project,
           query: {
@@ -104,6 +104,12 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           .optional()
           .describe("Max builds to return. Default: 50."),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project, hours, includePartial, top }) => {
       try {
@@ -117,9 +123,9 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           query: {
             minTime,
             resultFilter,
-            statusFilter: "completed",   // resultFilter is only valid on completed builds
+            statusFilter: "completed",
             "$top": top ?? 50,
-            queryOrder: "finishTimeDescending",  // queueTimeDescending is invalid with statusFilter=completed
+            queryOrder: "finishTimeDescending",
           },
         });
 
@@ -153,6 +159,12 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
       title: "List pipelines",
       description: "List pipelines defined in a project.",
       inputSchema: { ...projectArg },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project }) => {
       try {
@@ -189,6 +201,12 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           .optional()
           .describe("Filter by build status."),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project, definitionId, top, statusFilter }) => {
       try {
@@ -217,6 +235,12 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
       inputSchema: {
         ...projectArg,
         buildId: z.number().int().describe("Build id."),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
       },
     },
     async ({ project, buildId }) => {
@@ -248,12 +272,17 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           .optional()
           .describe("Max lines to return per log entry. Default: 150."),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project, buildId, maxLinesPerEntry }) => {
       try {
         const limit = maxLinesPerEntry ?? 150;
 
-        // 1. Get list of log entries for this build.
         const logList = await client.request(`_apis/build/builds/${buildId}/logs`, { project });
         const entries: any[] = logList.value ?? [];
 
@@ -261,11 +290,9 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           return jsonResult({ message: "No logs found for this build." });
         }
 
-        // 2. Fetch content of each entry; use startLine to get only the tail.
         const results: { id: number; lines: string }[] = [];
         for (const entry of entries) {
           try {
-            // Request content as plain text.
             const text = await client.request(
               `_apis/build/builds/${buildId}/logs/${entry.id}`,
               {
@@ -303,16 +330,21 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         ...projectArg,
         pipelineName: z
           .string()
-          .describe("Pipeline name or partial name to search for, e.g. 'mdp-monitoring-service [alpha]'."),
+          .describe("Pipeline name or partial name to search for."),
         branch: z
           .string()
           .optional()
           .describe("Branch to run on (without refs/heads/). Defaults to pipeline default."),
       },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ project, pipelineName, branch }) => {
       try {
-        // Search for the pipeline by name.
         const listData = await client.request("_apis/pipelines", { project });
         const all: any[] = listData.value ?? [];
         const lower = pipelineName.toLowerCase();
@@ -371,6 +403,12 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           .string()
           .optional()
           .describe("Branch to run against, without refs/heads/. Defaults to the pipeline default."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
       },
     },
     async ({ project, pipelineId, branch }) => {

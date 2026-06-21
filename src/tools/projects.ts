@@ -15,6 +15,12 @@ export function registerProjectTools(server: McpServer, client: AzureDevOpsClien
         "List all projects in the Azure DevOps collection. " +
         "Call this first when the project name is unknown or a lookup by name fails.",
       inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async () => {
       try {

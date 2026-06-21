@@ -3,6 +3,7 @@ import type { AzureDevOpsClient } from "./azureClient.js";
 import { registerProjectTools } from "./tools/projects.js";
 import { registerRepoTools } from "./tools/repos.js";
 import { registerPipelineTools } from "./tools/pipelines.js";
+import { registerWorkItemTools } from "./tools/workitems.js";
 
 /**
  * Build a fully configured MCP server instance with all tools registered.
@@ -11,13 +12,14 @@ import { registerPipelineTools } from "./tools/pipelines.js";
  */
 export function createMcpServer(client: AzureDevOpsClient): McpServer {
   const server = new McpServer({
-    name: "azure-devops-mcp",
-    version: "0.1.0",
+    name: "azure-devops-mcp-server",
+    version: "1.0.0",
   });
 
   registerProjectTools(server, client);
   registerRepoTools(server, client);
   registerPipelineTools(server, client);
+  registerWorkItemTools(server, client);
 
   return server;
 }

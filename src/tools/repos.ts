@@ -3,10 +3,6 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AzureDevOpsClient } from "../azureClient.js";
 import { projectArg, jsonResult, errorResult } from "./helpers.js";
 
-/**
- * Registers Git repository and pull-request tools.
- * Endpoints documented under /_apis/git of the Azure DevOps REST API.
- */
 export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) {
   server.registerTool(
     "list_repositories",
@@ -14,6 +10,12 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
       title: "List repositories",
       description: "List all Git repositories in a project.",
       inputSchema: { ...projectArg },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project }) => {
       try {
@@ -40,6 +42,12 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
       inputSchema: {
         ...projectArg,
         repositoryId: z.string().describe("Repository id or name."),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
       },
     },
     async ({ project, repositoryId }) => {
@@ -73,6 +81,12 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
           .optional()
           .describe("Branch name (without refs/heads/). Defaults to the repo default branch."),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project, repositoryId, path, branch }) => {
       try {
@@ -102,8 +116,7 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
       title: "List pull requests",
       description:
         "List pull requests across ALL repositories in a project, or filter to one repository. " +
-        "Use this for questions like 'show all open PRs', 'which PRs have no reviewer', " +
-        "'list PRs in project X'. " +
+        "Use this for questions like 'show all open PRs', 'list PRs in project X'. " +
         "Leave repositoryId empty to search the whole project at once.",
       inputSchema: {
         ...projectArg,
@@ -117,10 +130,15 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
           .describe("PR status filter. Default: active."),
         top: z.number().int().positive().max(200).optional().describe("Max PRs to return. Default: 100."),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project, repositoryId, status, top }) => {
       try {
-        // Project-level endpoint returns PRs across all repos when no repositoryId is given.
         const path = repositoryId
           ? `_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullrequests`
           : `_apis/git/pullrequests`;
@@ -134,7 +152,6 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
         });
         const prs = (data.value ?? []).map(summarizePr);
 
-        // Flag PRs with no reviewers assigned.
         const withReviewerFlag = prs.map((pr: any) => ({
           ...pr,
           hasReviewers: Array.isArray((pr as any).reviewers)
@@ -180,6 +197,12 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
           .optional()
           .describe("Max PRs to fetch. Default: 200."),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project, hours, top }) => {
       try {
@@ -193,7 +216,6 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
 
         const all: any[] = data.value ?? [];
 
-        // Filter by creation date if hours is specified.
         const minDate = hours
           ? new Date(Date.now() - hours * 60 * 60 * 1000)
           : null;
@@ -238,16 +260,149 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
         repositoryId: z.string().describe("Repository id or name."),
         pullRequestId: z.number().int().describe("Pull request id."),
       },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async ({ project, repositoryId, pullRequestId }) => {
       try {
         const data = await client.request(
-          `_apis/git/repositories/${encodeURIComponent(
-            repositoryId
-          )}/pullrequests/${pullRequestId}`,
+          `_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullrequests/${pullRequestId}`,
           { project }
         );
         return jsonResult(summarizePr(data, true));
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "get_pr_comments",
+    {
+      title: "Get PR comments",
+      description:
+        "Get the comment threads on a pull request. " +
+        "Use this for: 'what feedback was given on PR #42?', 'show review comments', " +
+        "'are there unresolved comments on this PR?'. " +
+        "Returns threads with author, content, and status (active/resolved).",
+      inputSchema: {
+        ...projectArg,
+        repositoryId: z.string().describe("Repository id or name."),
+        pullRequestId: z.number().int().describe("Pull request id."),
+        activeOnly: z
+          .boolean()
+          .optional()
+          .describe("Return only active (unresolved) threads. Default: false."),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ project, repositoryId, pullRequestId, activeOnly }) => {
+      try {
+        const data = await client.request(
+          `_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullRequests/${pullRequestId}/threads`,
+          { project }
+        );
+
+        let threads: any[] = data.value ?? [];
+
+        if (activeOnly) {
+          threads = threads.filter((t: any) => t.status === "active");
+        }
+
+        // Exclude pure system threads (branch push notifications, etc.)
+        threads = threads.filter((t: any) =>
+          t.comments?.some((c: any) => c.commentType !== "system")
+        );
+
+        const result = threads.map((t: any) => ({
+          threadId: t.id,
+          status: t.status,
+          filePath: t.threadContext?.filePath ?? null,
+          comments: (t.comments ?? [])
+            .filter((c: any) => c.commentType !== "system")
+            .map((c: any) => ({
+              author: c.author?.displayName,
+              content: c.content,
+              publishedDate: c.publishedDate,
+            })),
+        }));
+
+        return jsonResult({
+          pullRequestId,
+          threadCount: result.length,
+          threads: result,
+        });
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "add_pr_reviewer",
+    {
+      title: "Add reviewer to PR",
+      description:
+        "Add a reviewer to a pull request by their email or display name. " +
+        "Use for: 'add John as reviewer to PR #42', 'request review from jane@company.com'. " +
+        "Looks up the identity first, then assigns them.",
+      inputSchema: {
+        ...projectArg,
+        repositoryId: z.string().describe("Repository id or name."),
+        pullRequestId: z.number().int().describe("Pull request id."),
+        reviewer: z
+          .string()
+          .describe("Reviewer email address or display name."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ project, repositoryId, pullRequestId, reviewer }) => {
+      try {
+        // Look up the identity by email / display name
+        const identities = await client.request("_apis/identities", {
+          raw: true,
+          query: {
+            searchFilter: "General",
+            filterValue: reviewer,
+            queryMembership: "None",
+          },
+        });
+
+        const identity = (identities.value ?? [])[0];
+        if (!identity) {
+          return jsonResult({
+            error: `No user found matching "${reviewer}". Check the email or display name and try again.`,
+          });
+        }
+
+        await client.request(
+          `_apis/git/repositories/${encodeURIComponent(repositoryId)}/pullRequests/${pullRequestId}/reviewers/${identity.id}`,
+          {
+            project,
+            method: "PUT",
+            body: { vote: 0, id: identity.id },
+          }
+        );
+
+        return jsonResult({
+          message: `${identity.providerDisplayName ?? reviewer} added as reviewer to PR #${pullRequestId}.`,
+          reviewerId: identity.id,
+          displayName: identity.providerDisplayName,
+        });
       } catch (err) {
         return errorResult(err);
       }
@@ -267,6 +422,12 @@ export function registerRepoTools(server: McpServer, client: AzureDevOpsClient) 
         title: z.string().describe("Pull request title."),
         description: z.string().optional().describe("Pull request description."),
         isDraft: z.boolean().optional().describe("Create as a draft PR. Default: false."),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
       },
     },
     async ({ project, repositoryId, sourceBranch, targetBranch, title, description, isDraft }) => {

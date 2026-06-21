@@ -8,15 +8,19 @@ export const projectArg = {
     .describe("Azure DevOps project name or id. Defaults to AZDO_PROJECT if set."),
 };
 
+/** Max characters returned in a single tool response to avoid flooding the model context. */
+export const CHARACTER_LIMIT = 24_000;
+
 /** Standard MCP tool result wrapping a JSON-serialisable value as pretty text. */
 export function jsonResult(value: unknown) {
+  let text = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  if (text.length > CHARACTER_LIMIT) {
+    text =
+      text.slice(0, CHARACTER_LIMIT) +
+      `\n\n[Response truncated at ${CHARACTER_LIMIT} characters. Use filters or pagination to narrow results.]`;
+  }
   return {
-    content: [
-      {
-        type: "text" as const,
-        text: typeof value === "string" ? value : JSON.stringify(value, null, 2),
-      },
-    ],
+    content: [{ type: "text" as const, text }],
   };
 }
 
