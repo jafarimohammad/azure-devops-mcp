@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azure-devops-mcp
+  namespace: mcp-servers
+  labels:
+    app: azure-devops-mcp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: azure-devops-mcp
+  template:
+    metadata:
+      labels:
+        app: azure-devops-mcp
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: azure-devops-mcp
+          # Replace with your registry/image:tag
+          image: your-registry/azure-devops-mcp:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: azure-devops-mcp-config
+          env:
+            - name: AZDO_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: azure-devops-mcp-secret
+                  key: AZDO_PAT
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

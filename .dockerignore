@@ -1,0 +1,10 @@
+node_modules
+dist_bundle/.npm-*
+.git
+.gitignore
+.env
+*.log
+k8s
+README.md
+Dockerfile
+.dockerignore
