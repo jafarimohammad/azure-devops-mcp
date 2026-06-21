@@ -5,7 +5,11 @@ export const projectArg = {
   project: z
     .string()
     .optional()
-    .describe("Azure DevOps project name or id. Defaults to AZDO_PROJECT if set."),
+    .describe(
+      "Azure DevOps project name or id. " +
+      "Omit if AZDO_PROJECT env var is configured — the server uses it as the default. " +
+      "If the project name is unknown, call list_projects first to discover available projects."
+    ),
 };
 
 /** Max characters returned in a single tool response to avoid flooding the model context. */

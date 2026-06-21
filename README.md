@@ -30,7 +30,7 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 ```
 "List all failed builds in the last 24 hours and which pipelines they belong to"
 "Show me the open PRs targeting the main branch and their reviewers"
-"Find all work items of type Bug that are currently Active"
+"Find all active bugs in the project"
 "Create a pull request from feature/payment to develop with a description"
 "Add John as a reviewer to PR #87"
 "Run the pipeline named 'deploy-staging' on the release branch"
@@ -40,10 +40,10 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 ```
 "Which PRs opened in the last 48 hours still have no reviewer? Group them by repository."
 "Get the logs of the last failed build for the 'deploy-prod' pipeline and summarize what went wrong"
-"Find all In Progress work items assigned to the current user and list them by priority"
+"Find all In Progress work items assigned to me and list them by priority"
 "Show me all unresolved review comments on PR #112 — what feedback is still pending?"
 "List the last 5 builds for the backend pipeline. How many succeeded vs failed this week?"
-"Find work items with high priority that haven't been updated in more than 3 days"
+"Find high-priority work items that haven't been updated in more than 3 days"
 "Which repositories have open PRs with no reviewer and at least one unresolved comment?"
 ```
 
