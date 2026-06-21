@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jafarimohammad/azure-devops-mcp/main/logo.svg" width="180" alt="Azure DevOps MCP Server logo"/>
-</p>
-
 # Azure DevOps MCP Server
 
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server for **Azure DevOps Server 2022** (on-premise) that exposes Azure DevOps capabilities as AI-callable tools — letting any MCP-compatible AI assistant query pipelines, pull requests, builds, and repositories through natural language.
