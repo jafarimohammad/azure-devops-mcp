@@ -1,0 +1,45 @@
+<svg width="400" height="400" viewBox="0 0 680 400" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Azure DevOps MCP Server logo</title>
+  <desc>Hexagonal logo with Azure blue and purple tones showing a pipeline connection symbol</desc>
+  <defs>
+    <style>
+      .bg-hex { fill: #0078d4; }
+      .bg-hex-inner { fill: #106ebe; }
+      .icon-line { stroke: #ffffff; stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+      .icon-dot { fill: #ffffff; }
+      .icon-dot-accent { fill: #50e6ff; }
+      .label-main { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 28px; font-weight: 600; fill: #0078d4; letter-spacing: -0.5px; }
+      .label-sub { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; font-weight: 400; fill: #605e5c; letter-spacing: 1.5px; }
+      .label-badge { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 11px; font-weight: 600; fill: #ffffff; letter-spacing: 0.5px; }
+    </style>
+  </defs>
+
+  <polygon points="340,60 420,107 420,200 340,247 260,200 260,107" class="bg-hex"/>
+  <polygon points="340,75 410,117 410,193 340,235 270,193 270,117" class="bg-hex-inner" opacity="0.4"/>
+
+  <circle cx="299" cy="154" r="12" class="icon-dot"/>
+  <circle cx="340" cy="132" r="12" class="icon-dot-accent"/>
+  <circle cx="381" cy="154" r="12" class="icon-dot"/>
+
+  <line x1="310" y1="150" x2="329" y2="137" class="icon-line"/>
+  <line x1="351" y1="137" x2="370" y2="150" class="icon-line"/>
+
+  <path d="M299 166 Q340 195 381 166" class="icon-line" stroke-width="2.5"/>
+
+  <rect x="331" y="185" width="18" height="11" rx="2" class="icon-dot" opacity="0.85"/>
+  <line x1="340" y1="196" x2="340" y2="205" class="icon-line" stroke-width="2.5"/>
+
+  <text x="340" y="298" text-anchor="middle" class="label-main">Azure DevOps</text>
+  <text x="340" y="323" text-anchor="middle" class="label-sub">MCP SERVER</text>
+
+  <line x1="260" y1="337" x2="420" y2="337" stroke="#0078d4" stroke-width="1.5" opacity="0.3"/>
+
+  <rect x="245" y="350" width="58" height="20" rx="10" fill="#0078d4"/>
+  <text x="274" y="364" text-anchor="middle" class="label-badge">TypeScript</text>
+
+  <rect x="311" y="350" width="58" height="20" rx="10" fill="#326ce5"/>
+  <text x="340" y="364" text-anchor="middle" class="label-badge">Kubernetes</text>
+
+  <rect x="377" y="350" width="58" height="20" rx="10" fill="#7b2d8b"/>
+  <text x="406" y="364" text-anchor="middle" class="label-badge">MCP 1.x</text>
+</svg>
