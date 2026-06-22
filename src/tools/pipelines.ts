@@ -11,16 +11,20 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
       description:
         "Get the status and result of the most recent build in a project. " +
         "Use this to answer questions like 'what is the last pipeline status?', " +
-        "'did the last build succeed?', 'what ran last?'. " +
-        "Optionally filter by pipeline name (partial match). " +
-        "Returns: buildNumber, status (inProgress/completed), result (succeeded/failed/partiallySucceeded/canceled), " +
-        "pipeline name, branch, who triggered it, and start/finish time.",
+        "'did the last build succeed?', 'what ran last?', " +
+        "'what was the last build on agent pool X?', 'last pipeline run on agent win19-prod-bi'. " +
+        "Optionally filter by pipeline name (partial match) or agent pool name. " +
+        "Returns: buildNumber, status, result, pipeline name, branch, agent pool, who triggered it, and start/finish time.",
       inputSchema: {
         ...projectArg,
         pipelineName: z
           .string()
           .optional()
           .describe("Filter by pipeline name (partial, case-insensitive). Omit to get the last build across all pipelines."),
+        agentPoolName: z
+          .string()
+          .optional()
+          .describe("Filter by agent pool name (exact or partial match), e.g. 'win19-prod-bi'. Use list_agent_pools to discover available pools."),
       },
       annotations: {
         readOnlyHint: true,
@@ -29,16 +33,31 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         openWorldHint: true,
       },
     },
-    async ({ project, pipelineName }) => {
+    async ({ project, pipelineName, agentPoolName }) => {
       try {
-        const data = await client.request("_apis/build/builds", {
-          project,
-          query: {
-            "$top": 50,
-            queryOrder: "queueTimeDescending",
-          },
-        });
+        const query: Record<string, any> = {
+          "$top": 200,
+          queryOrder: "queueTimeDescending",
+        };
 
+        // Resolve agent pool name → queue ID so the API can filter server-side
+        if (agentPoolName) {
+          const queues = await client.request("_apis/distributedtask/queues", {
+            project,
+            query: { queueName: agentPoolName },
+          });
+          const queue = (queues.value ?? []).find((q: any) =>
+            q.name?.toLowerCase().includes(agentPoolName.toLowerCase())
+          );
+          if (!queue) {
+            return jsonResult({
+              error: `No agent pool found matching "${agentPoolName}". Call list_agent_pools to see available pools.`,
+            });
+          }
+          query.queues = queue.id;
+        }
+
+        const data = await client.request("_apis/build/builds", { project, query });
         let builds: any[] = data.value ?? [];
 
         if (pipelineName) {
@@ -50,9 +69,11 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
 
         if (builds.length === 0) {
           return jsonResult({
-            message: pipelineName
-              ? `No builds found for pipeline matching "${pipelineName}".`
-              : "No builds found in this project.",
+            message: agentPoolName
+              ? `No builds found on agent pool "${agentPoolName}"${pipelineName ? ` for pipeline matching "${pipelineName}"` : ""}.`
+              : pipelineName
+                ? `No builds found for pipeline matching "${pipelineName}".`
+                : "No builds found in this project.",
           });
         }
 
@@ -63,6 +84,7 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           status: last.status,
           result: last.result ?? "in progress",
           pipeline: last.definition?.name,
+          agentPool: last.queue?.name,
           branch: last.sourceBranch?.replace(/^refs\/heads\//, ""),
           requestedBy: last.requestedFor?.displayName,
           queueTime: last.queueTime,
@@ -187,7 +209,9 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
     "list_builds",
     {
       title: "List builds",
-      description: "List recent builds in a project, optionally filtered by pipeline/definition.",
+      description:
+        "List recent builds in a project, optionally filtered by pipeline, status, or agent pool. " +
+        "Use agentPoolName to answer 'show builds that ran on agent pool X'.",
       inputSchema: {
         ...projectArg,
         definitionId: z
@@ -195,7 +219,11 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           .int()
           .optional()
           .describe("Filter by pipeline/definition id."),
-        top: z.number().int().positive().max(200).optional().describe("Max builds to return."),
+        agentPoolName: z
+          .string()
+          .optional()
+          .describe("Filter by agent pool name (partial match), e.g. 'win19-prod-bi'. Use list_agent_pools to discover pool names."),
+        top: z.number().int().positive().max(200).optional().describe("Max builds to return. Default: 20."),
         statusFilter: z
           .enum(["inProgress", "completed", "cancelling", "postponed", "notStarted", "all"])
           .optional()
@@ -208,17 +236,32 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         openWorldHint: true,
       },
     },
-    async ({ project, definitionId, top, statusFilter }) => {
+    async ({ project, definitionId, agentPoolName, top, statusFilter }) => {
       try {
-        const data = await client.request("_apis/build/builds", {
-          project,
-          query: {
-            definitions: definitionId,
-            "$top": top ?? 20,
-            statusFilter: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
-            queryOrder: "queueTimeDescending",
-          },
-        });
+        const query: Record<string, any> = {
+          definitions: definitionId,
+          "$top": top ?? 20,
+          statusFilter: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
+          queryOrder: "queueTimeDescending",
+        };
+
+        if (agentPoolName) {
+          const queues = await client.request("_apis/distributedtask/queues", {
+            project,
+            query: { queueName: agentPoolName },
+          });
+          const queue = (queues.value ?? []).find((q: any) =>
+            q.name?.toLowerCase().includes(agentPoolName.toLowerCase())
+          );
+          if (!queue) {
+            return jsonResult({
+              error: `No agent pool found matching "${agentPoolName}". Call list_agent_pools to see available pools.`,
+            });
+          }
+          query.queues = queue.id;
+        }
+
+        const data = await client.request("_apis/build/builds", { project, query });
         const builds = (data.value ?? []).map(summarizeBuild);
         return jsonResult({ count: builds.length, builds });
       } catch (err) {
@@ -311,6 +354,38 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         }
 
         return jsonResult({ buildId, logCount: entries.length, logs: results });
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
+    "list_agent_pools",
+    {
+      title: "List agent pools",
+      description:
+        "List all agent pools (queues) available in a project. " +
+        "Use this to discover pool names when the user asks about a specific agent pool, " +
+        "or before calling get_last_build / list_builds with agentPoolName.",
+      inputSchema: { ...projectArg },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ project }) => {
+      try {
+        const data = await client.request("_apis/distributedtask/queues", { project });
+        const pools = (data.value ?? []).map((q: any) => ({
+          id: q.id,
+          name: q.name,
+          poolType: q.pool?.poolType,
+          isHosted: q.pool?.isHosted ?? false,
+        }));
+        return jsonResult({ count: pools.length, agentPools: pools });
       } catch (err) {
         return errorResult(err);
       }
