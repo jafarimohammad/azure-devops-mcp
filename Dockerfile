@@ -22,8 +22,14 @@ ENV NPM_CONFIG_PROXY=$NPM_PROXY \
     NODE_ENV=production
 WORKDIR /app
 
+# Upgrade Alpine packages to pick up latest security patches (openssl, busybox, etc.)
+RUN apk update && apk upgrade --no-cache
+
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force && \
+    # Remove npm after use — only node is needed at runtime. \
+    # This eliminates npm's bundled packages (tar, minimatch, glob, cross-spawn, etc.) from the image. \
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 
 ENV NPM_CONFIG_PROXY="" \
     NPM_CONFIG_HTTPS_PROXY=""

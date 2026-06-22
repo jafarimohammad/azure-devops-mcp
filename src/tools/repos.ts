@@ -471,7 +471,7 @@ function summarizePr(pr: any, detailed = false) {
     targetRefName: pr.targetRefName,
     creationDate: pr.creationDate,
     reviewers,
-    webUrl: pr.url,
+    webUrl: pr._links?.web?.href ?? pr.url,
   };
   if (!detailed) return base;
   return { ...base, description: pr.description, mergeStatus: pr.mergeStatus };

@@ -356,25 +356,22 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           return jsonResult({ message: "No logs found for this build." });
         }
 
-        const results: { id: number; lines: string }[] = [];
-        for (const entry of entries) {
-          try {
-            const text = await client.request(
-              `_apis/build/builds/${buildId}/logs/${entry.id}`,
-              {
-                project,
-                query: { "$format": "text" },
-                apiVersion: "7.0",
-              }
-            );
-            const lines: string[] = (typeof text === "string" ? text : JSON.stringify(text))
-              .split("\n");
-            const tail = lines.slice(-limit).join("\n");
-            results.push({ id: entry.id, lines: tail });
-          } catch {
-            // skip unreadable log entries
-          }
-        }
+        // Fetch all log entries in parallel
+        const settled = await Promise.allSettled(
+          entries.map((entry) =>
+            client.request(`_apis/build/builds/${buildId}/logs/${entry.id}`, {
+              project,
+              query: { "$format": "text" },
+              apiVersion: "7.0",
+            }).then((text) => {
+              const lines = (typeof text === "string" ? text : JSON.stringify(text)).split("\n");
+              return { id: entry.id as number, lines: lines.slice(-limit).join("\n") };
+            })
+          )
+        );
+        const results = settled
+          .filter((r): r is PromiseFulfilledResult<{ id: number; lines: string }> => r.status === "fulfilled")
+          .map((r) => r.value);
 
         return jsonResult({ buildId, logCount: entries.length, logs: results });
       } catch (err) {
@@ -476,35 +473,34 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         const seen = new Set<number>();
         pools = pools.filter((p) => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
 
-        const poolResults: any[] = [];
+        // Fetch agents for all pools in parallel
+        const poolResults = await Promise.all(
+          pools.map(async (pool) => {
+            try {
+              const data = await client.request(
+                `_apis/distributedtask/pools/${pool.id}/agents`,
+                { raw: true, query: { includeCapabilities: false, includeAssignedRequest: true } }
+              );
+              const agents: any[] = data.value ?? [];
+              const online = agents.filter((a) => a.status === "online" && a.enabled !== false).length;
+              return {
+                pool: pool.name,
+                total: agents.length,
+                online,
+                offline: agents.length - online,
+                agents: agents.map((a) => ({ name: a.name, status: a.status, enabled: a.enabled })),
+              };
+            } catch {
+              return { pool: pool.name, error: "Could not retrieve agents (check Agent Pools read permission)", online: 0, offline: 0 };
+            }
+          })
+        );
+
         let totalOnline = 0;
         let totalOffline = 0;
-
-        for (const pool of pools) {
-          try {
-            const data = await client.request(
-              `_apis/distributedtask/pools/${pool.id}/agents`,
-              { raw: true, query: { includeCapabilities: false, includeAssignedRequest: true } }
-            );
-            const agents: any[] = data.value ?? [];
-            const online = agents.filter((a) => a.status === "online" && a.enabled !== false).length;
-            const offline = agents.length - online;
-            totalOnline += online;
-            totalOffline += offline;
-            poolResults.push({
-              pool: pool.name,
-              total: agents.length,
-              online,
-              offline,
-              agents: agents.map((a) => ({
-                name: a.name,
-                status: a.status,
-                enabled: a.enabled,
-              })),
-            });
-          } catch {
-            poolResults.push({ pool: pool.name, error: "Could not retrieve agents (check Agent Pools read permission)" });
-          }
+        for (const r of poolResults) {
+          totalOnline += r.online ?? 0;
+          totalOffline += r.offline ?? 0;
         }
 
         return jsonResult({
@@ -648,6 +644,7 @@ function summarizeBuild(b: any, detailed = false) {
     status: b.status,
     result: b.result,
     definition: b.definition?.name,
+    agentPool: b.queue?.name ?? null,
     sourceBranch: b.sourceBranch,
     requestedFor: b.requestedFor?.displayName,
     queueTime: b.queueTime,
