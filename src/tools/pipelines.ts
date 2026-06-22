@@ -378,13 +378,24 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
     },
     async ({ project }) => {
       try {
-        const data = await client.request("_apis/distributedtask/queues", { project });
-        const pools = (data.value ?? []).map((q: any) => ({
-          id: q.id,
-          name: q.name,
-          poolType: q.pool?.poolType,
-          isHosted: q.pool?.isHosted ?? false,
-        }));
+        // Try project-level queues first; fall back to collection-level pools.
+        let pools: any[] = [];
+        try {
+          const queues = await client.request("_apis/distributedtask/queues", { project });
+          pools = (queues.value ?? []).map((q: any) => ({
+            id: q.id,
+            name: q.name,
+            isHosted: q.pool?.isHosted ?? false,
+          }));
+        } catch {
+          // Fall back to collection-level pools (requires Agent Pools read permission)
+          const collPools = await client.request("_apis/distributedtask/pools", { raw: true });
+          pools = (collPools.value ?? []).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            isHosted: p.isHosted ?? false,
+          }));
+        }
         return jsonResult({ count: pools.length, agentPools: pools });
       } catch (err) {
         return errorResult(err);

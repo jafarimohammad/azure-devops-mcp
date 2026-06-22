@@ -44,7 +44,8 @@ export class AzureDevOpsClient {
     let base = this.config.orgUrl;
 
     if (!opts.raw) {
-      const project = opts.project ?? this.config.defaultProject;
+      // Treat empty string the same as omitted — fall back to the configured default.
+      const project = opts.project?.trim() || this.config.defaultProject;
       if (!project) {
         throw new Error(
           "No project specified and AZDO_PROJECT is not set. Pass a 'project' argument."
