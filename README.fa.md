@@ -34,6 +34,7 @@
 "pipeline با نام deploy-staging را روی شاخه release اجرا کن"
 "آخرین پایپ‌لاینی که روی agent pool win19-prod-bi اجرا شده کدام است؟"
 "این هفته چند build completed شده در مقایسه با هفته قبل؟"
+"الان چند build agent آنلاین است؟"
 ```
 
 **سوالات پیچیده**
@@ -79,6 +80,7 @@
 |-------|-------|
 | `list_pipelines` | لیست تمام pipeline‌های تعریف‌شده در پروژه |
 | `list_agent_pools` | لیست agent poolهای موجود در پروژه |
+| `list_agents` | لیست agentها در همه pool‌ها یا یک pool خاص با وضعیت online/offline و تعداد |
 | `get_last_build` | وضعیت آخرین build — با فیلتر نام pipeline یا نام agent pool |
 | `list_builds` | لیست build‌ها با فیلتر: pipeline، وضعیت، agent pool، و بازه تاریخ (`minTime`/`maxTime`) |
 | `list_failed_builds` | پیدا کردن build‌های شکست‌خورده در N ساعت گذشته |

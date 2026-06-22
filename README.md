@@ -36,6 +36,7 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 "Run the pipeline named 'deploy-staging' on the release branch"
 "What was the last pipeline that ran on agent pool win19-prod-bi?"
 "How many builds completed this week compared to last week?"
+"How many build agents are online right now?"
 ```
 
 **Complex queries**
@@ -47,7 +48,7 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 "How many completed builds ran in the last 7 days vs the 7 days before that? What is the percentage change?"
 "Find high-priority work items that haven't been updated in more than 3 days"
 "Which repositories have open PRs with no reviewer and at least one unresolved comment?"
-"Which agent pools are available, and what was the last build on each of them?"
+"Which agent pools are available, and how many agents are online in each pool?"
 ```
 
 ---
@@ -81,6 +82,7 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 |------|-------------|
 | `list_pipelines` | List all pipeline definitions in a project |
 | `list_agent_pools` | List available agent pools/queues in a project |
+| `list_agents` | List agents across all pools or a specific pool with online/offline status and counts |
 | `get_last_build` | Get the most recent build — filter by pipeline name or agent pool name |
 | `list_builds` | List builds with filters: pipeline, status, agent pool, and date range (`minTime`/`maxTime`) |
 | `list_failed_builds` | Find failed/partial builds in the last N hours |
