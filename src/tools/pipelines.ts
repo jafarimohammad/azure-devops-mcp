@@ -210,7 +210,9 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
     {
       title: "List builds",
       description:
-        "List recent builds in a project, optionally filtered by pipeline, status, or agent pool. " +
+        "List builds in a project, optionally filtered by pipeline, status, agent pool, or date range. " +
+        "Use minTime/maxTime to count builds in a specific period — e.g. to compare this week vs last week. " +
+        "When date filters are used, top is automatically raised to 500 to avoid missing builds. " +
         "Use agentPoolName to answer 'show builds that ran on agent pool X'.",
       inputSchema: {
         ...projectArg,
@@ -223,7 +225,15 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           .string()
           .optional()
           .describe("Filter by agent pool name (partial match), e.g. 'win19-prod-bi'. Use list_agent_pools to discover pool names."),
-        top: z.number().int().positive().max(200).optional().describe("Max builds to return. Default: 20."),
+        minTime: z
+          .string()
+          .optional()
+          .describe("Return builds queued on or after this ISO 8601 date-time, e.g. '2026-06-15T00:00:00Z'."),
+        maxTime: z
+          .string()
+          .optional()
+          .describe("Return builds queued before or on this ISO 8601 date-time, e.g. '2026-06-22T00:00:00Z'."),
+        top: z.number().int().positive().max(2000).optional().describe("Max builds to return. Default: 20 (500 when minTime/maxTime are set)."),
         statusFilter: z
           .enum(["inProgress", "completed", "cancelling", "postponed", "notStarted", "all"])
           .optional()
@@ -236,13 +246,16 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         openWorldHint: true,
       },
     },
-    async ({ project, definitionId, agentPoolName, top, statusFilter }) => {
+    async ({ project, definitionId, agentPoolName, minTime, maxTime, top, statusFilter }) => {
       try {
+        const defaultTop = minTime || maxTime ? 500 : 20;
         const query: Record<string, any> = {
           definitions: definitionId,
-          "$top": top ?? 20,
+          "$top": top ?? defaultTop,
           statusFilter: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
           queryOrder: "queueTimeDescending",
+          minTime,
+          maxTime,
         };
 
         if (agentPoolName) {
@@ -263,7 +276,7 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
 
         const data = await client.request("_apis/build/builds", { project, query });
         const builds = (data.value ?? []).map(summarizeBuild);
-        return jsonResult({ count: builds.length, builds });
+        return jsonResult({ count: builds.length, minTime: minTime ?? null, maxTime: maxTime ?? null, builds });
       } catch (err) {
         return errorResult(err);
       }
