@@ -34,6 +34,8 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 "Create a pull request from feature/payment to develop with a description"
 "Add John as a reviewer to PR #87"
 "Run the pipeline named 'deploy-staging' on the release branch"
+"What was the last pipeline that ran on agent pool win19-prod-bi?"
+"How many builds completed this week compared to last week?"
 ```
 
 **Complex queries**
@@ -42,9 +44,10 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 "Get the logs of the last failed build for the 'deploy-prod' pipeline and summarize what went wrong"
 "Find all In Progress work items assigned to me and list them by priority"
 "Show me all unresolved review comments on PR #112 — what feedback is still pending?"
-"List the last 5 builds for the backend pipeline. How many succeeded vs failed this week?"
+"How many completed builds ran in the last 7 days vs the 7 days before that? What is the percentage change?"
 "Find high-priority work items that haven't been updated in more than 3 days"
 "Which repositories have open PRs with no reviewer and at least one unresolved comment?"
+"Which agent pools are available, and what was the last build on each of them?"
 ```
 
 ---
@@ -77,8 +80,9 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 | Tool | Description |
 |------|-------------|
 | `list_pipelines` | List all pipeline definitions in a project |
-| `get_last_build` | Get the most recent build status, optionally filtered by pipeline name |
-| `list_builds` | List recent builds filtered by pipeline or status |
+| `list_agent_pools` | List available agent pools/queues in a project |
+| `get_last_build` | Get the most recent build — filter by pipeline name or agent pool name |
+| `list_builds` | List builds with filters: pipeline, status, agent pool, and date range (`minTime`/`maxTime`) |
 | `list_failed_builds` | Find failed/partial builds in the last N hours |
 | `get_build` | Get details of a specific build |
 | `get_build_logs` | Fetch console log output of a build (auto-truncated, last 150 lines) |
