@@ -249,11 +249,21 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
     async ({ project, definitionId, agentPoolName, minTime, maxTime, top, statusFilter }) => {
       try {
         const defaultTop = minTime || maxTime ? 500 : 20;
+        const resolvedStatus = statusFilter && statusFilter !== "all" ? statusFilter : undefined;
+
+        // Azure DevOps API rejects statusFilter=completed with queueTimeDescending.
+        // Use finishTimeDescending when filtering by a completed/terminal status.
+        const terminalStatuses = new Set(["completed", "cancelling"]);
+        const queryOrder =
+          resolvedStatus && terminalStatuses.has(resolvedStatus)
+            ? "finishTimeDescending"
+            : "queueTimeDescending";
+
         const query: Record<string, any> = {
-          definitions: definitionId,
+          definitions: definitionId && definitionId > 0 ? definitionId : undefined,
           "$top": top ?? defaultTop,
-          statusFilter: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
-          queryOrder: "queueTimeDescending",
+          statusFilter: resolvedStatus,
+          queryOrder,
           minTime,
           maxTime,
         };
