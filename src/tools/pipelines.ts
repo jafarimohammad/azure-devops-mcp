@@ -427,6 +427,99 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
   );
 
   server.registerTool(
+    "list_agents",
+    {
+      title: "List agents",
+      description:
+        "List agents (build machines) across all pools or within a specific pool, with their online/offline status. " +
+        "Use this to answer: 'how many agents are online?', 'which agents are active?', " +
+        "'how many build agents does pool X have?', 'تعداد agent‌های فعال چنده؟'. " +
+        "When poolName is omitted, aggregates agents from all pools and returns a summary.",
+      inputSchema: {
+        ...projectArg,
+        poolName: z
+          .string()
+          .optional()
+          .describe("Filter to a specific pool by name (partial match). Omit to get agents across all pools."),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ project, poolName }) => {
+      try {
+        // First get the list of pools (project-level queues → pool IDs)
+        let pools: { id: number; name: string }[] = [];
+        try {
+          const queues = await client.request("_apis/distributedtask/queues", { project });
+          pools = (queues.value ?? []).map((q: any) => ({
+            id: q.pool?.id ?? q.id,
+            name: q.name,
+          }));
+        } catch {
+          const collPools = await client.request("_apis/distributedtask/pools", { raw: true });
+          pools = (collPools.value ?? []).map((p: any) => ({ id: p.id, name: p.name }));
+        }
+
+        if (poolName) {
+          const lower = poolName.toLowerCase();
+          pools = pools.filter((p) => p.name.toLowerCase().includes(lower));
+          if (pools.length === 0) {
+            return jsonResult({ error: `No pool found matching "${poolName}". Call list_agent_pools to see available pools.` });
+          }
+        }
+
+        // Deduplicate by pool id (project queues can map to the same underlying pool)
+        const seen = new Set<number>();
+        pools = pools.filter((p) => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+
+        const poolResults: any[] = [];
+        let totalOnline = 0;
+        let totalOffline = 0;
+
+        for (const pool of pools) {
+          try {
+            const data = await client.request(
+              `_apis/distributedtask/pools/${pool.id}/agents`,
+              { raw: true, query: { includeCapabilities: false, includeAssignedRequest: true } }
+            );
+            const agents: any[] = data.value ?? [];
+            const online = agents.filter((a) => a.status === "online" && a.enabled !== false).length;
+            const offline = agents.length - online;
+            totalOnline += online;
+            totalOffline += offline;
+            poolResults.push({
+              pool: pool.name,
+              total: agents.length,
+              online,
+              offline,
+              agents: agents.map((a) => ({
+                name: a.name,
+                status: a.status,
+                enabled: a.enabled,
+              })),
+            });
+          } catch {
+            poolResults.push({ pool: pool.name, error: "Could not retrieve agents (check Agent Pools read permission)" });
+          }
+        }
+
+        return jsonResult({
+          totalAgents: totalOnline + totalOffline,
+          totalOnline,
+          totalOffline,
+          pools: poolResults,
+        });
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
     "run_pipeline_by_name",
     {
       title: "Run pipeline by name",
