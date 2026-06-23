@@ -4,6 +4,7 @@ import { registerProjectTools } from "./tools/projects.js";
 import { registerRepoTools } from "./tools/repos.js";
 import { registerPipelineTools } from "./tools/pipelines.js";
 import { registerWorkItemTools } from "./tools/workitems.js";
+import { registerReleaseTools } from "./tools/releases.js";
 
 /**
  * Build a fully configured MCP server instance with all tools registered.
@@ -20,6 +21,7 @@ export function createMcpServer(client: AzureDevOpsClient): McpServer {
   registerRepoTools(server, client);
   registerPipelineTools(server, client);
   registerWorkItemTools(server, client);
+  registerReleaseTools(server, client);
 
   return server;
 }

@@ -99,6 +99,13 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 | `create_work_item` | Create a new work item (Bug, Task, User Story, etc.) |
 | `update_work_item` | Update fields of an existing work item (state, assignee, title, etc.) |
 
+### Classic Release Pipelines
+| Tool | Description |
+|------|-------------|
+| `list_release_definitions` | List classic release pipeline definitions with their stages |
+| `list_releases` | List releases with per-stage deployment status — filter by pipeline name and/or stage name (e.g. "last release deployed to Shatel") |
+| `get_release` | Get full details of a release: all stage statuses, deploy times, and artifact versions |
+
 ---
 
 ## Architecture

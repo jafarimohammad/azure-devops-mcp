@@ -97,6 +97,13 @@
 | `create_work_item` | ایجاد work item جدید (Bug، Task، User Story و غیره) |
 | `update_work_item` | به‌روزرسانی فیلدهای یک work item (وضعیت، مسئول، عنوان و غیره) |
 
+### Release Pipeline‌های کلاسیک
+| ابزار | توضیح |
+|-------|-------|
+| `list_release_definitions` | لیست release pipeline‌های کلاسیک به همراه stage‌های آن‌ها |
+| `list_releases` | لیست release‌ها با وضعیت استقرار هر stage — فیلتر بر اساس نام pipeline یا stage (مثلاً «آخرین پابلیش روی Shatel») |
+| `get_release` | جزئیات کامل یک release: وضعیت stage‌ها، زمان استقرار و نسخه artifact |
+
 ---
 
 ## معماری
