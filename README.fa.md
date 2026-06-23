@@ -103,6 +103,7 @@
 | `list_release_definitions` | لیست release pipeline‌های کلاسیک به همراه stage‌های آن‌ها |
 | `list_releases` | لیست release‌ها با وضعیت استقرار هر stage — فیلتر بر اساس نام pipeline یا stage (مثلاً «آخرین پابلیش روی Shatel») |
 | `get_release` | جزئیات کامل یک release: وضعیت stage‌ها، زمان استقرار و نسخه artifact |
+| `get_release_changes` | لیست commitها یا changesetهای TFVC داخل یک release (پاسخ به «چه تغییراتی در این deploy بود؟») |
 
 ---
 

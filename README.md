@@ -105,6 +105,7 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 | `list_release_definitions` | List classic release pipeline definitions with their stages |
 | `list_releases` | List releases with per-stage deployment status — filter by pipeline name and/or stage name (e.g. "last release deployed to Shatel") |
 | `get_release` | Get full details of a release: all stage statuses, deploy times, and artifact versions |
+| `get_release_changes` | Get the list of commits / TFVC changesets included in a release (answers "what changed in this deployment?") |
 
 ---
 

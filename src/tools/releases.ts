@@ -168,12 +168,62 @@ export function registerReleaseTools(server: McpServer, client: AzureDevOpsClien
   );
 
   server.registerTool(
+    "get_release_changes",
+    {
+      title: "Get release changes",
+      description:
+        "Get the list of code changes (commits / TFVC changesets) included in a release. " +
+        "Use this to answer: 'چه تغییراتی در این release اعمال شده؟', " +
+        "'what was committed in Release-322?', 'which changesets are in this deployment?'. " +
+        "Returns each change: changeset/commit ID, message, author, and timestamp.",
+      inputSchema: {
+        ...projectArg,
+        releaseId: z.number().int().describe("Release ID (from list_releases or get_release)."),
+        top: z
+          .number()
+          .int()
+          .positive()
+          .max(200)
+          .optional()
+          .describe("Max changes to return. Default: 50."),
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async ({ project, releaseId, top }) => {
+      try {
+        const data = await client.request(`_apis/release/releases/${releaseId}/changes`, {
+          project,
+          query: { $top: top ?? 50 },
+        });
+
+        const changes = (data.value ?? []).map((c: any) => ({
+          id: c.id,
+          message: c.message,
+          author: c.author?.displayName ?? c.pushedBy?.displayName ?? null,
+          timestamp: c.timestamp ?? c.pushedAt ?? null,
+          type: c.changeType ?? null,
+          location: c.location ?? null,
+        }));
+
+        return jsonResult({
+          releaseId,
+          count: changes.length,
+          changes,
+        });
+      } catch (err) {
+        return errorResult(err);
+      }
+    }
+  );
+
+  server.registerTool(
     "get_release",
     {
       title: "Get release",
       description:
         "Get full details of a single release, including all stage deployment times and statuses. " +
-        "Use after list_releases to drill into a specific release.",
+        "Use after list_releases to drill into a specific release. " +
+        "To see what code was included, call get_release_changes separately.",
       inputSchema: {
         ...projectArg,
         releaseId: z.number().int().describe("Release ID (from list_releases)."),
