@@ -31,9 +31,11 @@ export function registerReleaseTools(server: McpServer, client: AzureDevOpsClien
         const defs = (data.value ?? []).map((d: any) => ({
           id: d.id,
           name: d.name,
+          webUrl: d._links?.web?.href ?? null,
           stages: (d.environments ?? []).map((e: any) => e.name),
           lastReleaseId: d.lastRelease?.id ?? null,
           lastReleaseName: d.lastRelease?.name ?? null,
+          lastReleaseWebUrl: d.lastRelease?._links?.web?.href ?? null,
           createdOn: d.createdOn,
           modifiedOn: d.modifiedOn,
         }));
@@ -145,6 +147,7 @@ export function registerReleaseTools(server: McpServer, client: AzureDevOpsClien
         const result = releases.map((r: any) => ({
           id: r.id,
           name: r.name,
+          webUrl: r._links?.web?.href ?? null,
           createdOn: r.createdOn,
           createdBy: r.createdBy?.displayName,
           status: r.status,
@@ -236,6 +239,7 @@ export function registerReleaseTools(server: McpServer, client: AzureDevOpsClien
         return jsonResult({
           id: r.id,
           name: r.name,
+          webUrl: r._links?.web?.href ?? null,
           status: r.status,
           createdOn: r.createdOn,
           createdBy: r.createdBy?.displayName,
