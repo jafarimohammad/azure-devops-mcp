@@ -326,7 +326,10 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
       description:
         "Fetch the console log output of a build. " +
         "Use this when the user asks for build logs, error details, failure reason, or what went wrong in a build. " +
-        "Returns log text per stage/task. Large logs are automatically truncated to the last 150 lines per entry.",
+        "Returns log text per stage/task. Large logs are automatically truncated to the last 150 lines per entry. " +
+        "When analyzing WHY a build failed, set errorsOnly=true to get only error/warning lines — " +
+        "this is much faster and avoids filling context with irrelevant output. " +
+        "Use errorsOnly=true for: 'چرا build ناموفق بود؟', 'what error caused the failure?', 'summarize build failures'.",
       inputSchema: {
         ...projectArg,
         buildId: z.number().int().describe("Build id (from get_last_build or list_builds)."),
@@ -336,7 +339,15 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           .positive()
           .max(500)
           .optional()
-          .describe("Max lines to return per log entry. Default: 150."),
+          .describe("Max lines to return per log entry. Default: 150. Ignored when errorsOnly=true."),
+        errorsOnly: z
+          .boolean()
+          .optional()
+          .describe(
+            "When true, return only lines containing error/warning markers " +
+            "(##[error], ##[warning], error:, failed, exception, cannot, unable to). " +
+            "Drastically reduces response size. Use when diagnosing build failures."
+          ),
       },
       annotations: {
         readOnlyHint: true,
@@ -345,9 +356,10 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         openWorldHint: true,
       },
     },
-    async ({ project, buildId, maxLinesPerEntry }) => {
+    async ({ project, buildId, maxLinesPerEntry, errorsOnly }) => {
       try {
         const limit = maxLinesPerEntry ?? 150;
+        const ERROR_PATTERNS = /##\[error\]|##\[warning\]|\berror\b|\bfailed\b|\bfailure\b|\bexception\b|\bcannot\b|\bunable to\b|\bnot found\b/i;
 
         const logList = await client.request(`_apis/build/builds/${buildId}/logs`, { project });
         const entries: any[] = logList.value ?? [];
@@ -364,16 +376,20 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
               query: { "$format": "text" },
               apiVersion: "7.0",
             }).then((text) => {
-              const lines = (typeof text === "string" ? text : JSON.stringify(text)).split("\n");
-              return { id: entry.id as number, lines: lines.slice(-limit).join("\n") };
+              const allLines = (typeof text === "string" ? text : JSON.stringify(text)).split("\n");
+              const lines = errorsOnly
+                ? allLines.filter((l) => ERROR_PATTERNS.test(l))
+                : allLines.slice(-limit);
+              return { id: entry.id as number, lines: lines.join("\n") };
             })
           )
         );
         const results = settled
           .filter((r): r is PromiseFulfilledResult<{ id: number; lines: string }> => r.status === "fulfilled")
-          .map((r) => r.value);
+          .map((r) => r.value)
+          .filter((r) => r.lines.trim().length > 0);
 
-        return jsonResult({ buildId, logCount: entries.length, logs: results });
+        return jsonResult({ buildId, logCount: entries.length, errorsOnly: errorsOnly ?? false, logs: results });
       } catch (err) {
         return errorResult(err);
       }
