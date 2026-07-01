@@ -210,10 +210,15 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
     {
       title: "List builds",
       description:
-        "List builds in a project, optionally filtered by pipeline, status, agent pool, or date range. " +
+        "List builds in a project, optionally filtered by pipeline, status, result, agent pool, or date range. " +
         "Use minTime/maxTime to count builds in a specific period — e.g. to compare this week vs last week. " +
         "When date filters are used, top is automatically raised to 500 to avoid missing builds. " +
         "Use agentPoolName to answer 'show builds that ran on agent pool X'. " +
+        "Use definitionNameFilter to answer 'builds for pipelines with X in the name' (e.g. 'prod') — " +
+        "no need to call list_pipelines first. " +
+        "Use resultFilter='succeeded' for 'which builds succeeded/completed successfully' — " +
+        "statusFilter is about whether the build is done running (completed/inProgress/etc), " +
+        "resultFilter is about the outcome (succeeded/failed/canceled). " +
         "Results are ordered newest-first, so with a date range, older builds near minTime may be cut off " +
         "if there are more builds than 'top' in the range — check the response's 'truncated' field and " +
         "raise 'top' or narrow the range if it is true.",
@@ -222,8 +227,17 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         definitionId: z
           .number()
           .int()
-          .optional()
+          .nullish()
+          .transform((v) => v ?? undefined)
           .describe("Filter by pipeline/definition id."),
+        definitionNameFilter: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by pipeline/definition name (partial, case-insensitive match), e.g. 'prod' to match " +
+            "all pipelines with 'prod' in their name. Resolves matching definitions internally — " +
+            "no need to call list_pipelines first."
+          ),
         agentPoolName: z
           .string()
           .optional()
@@ -240,7 +254,11 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         statusFilter: z
           .enum(["inProgress", "completed", "cancelling", "postponed", "notStarted", "all"])
           .optional()
-          .describe("Filter by build status."),
+          .describe("Filter by whether the build has finished running: completed, inProgress, etc. For filtering by outcome (succeeded/failed), use resultFilter instead."),
+        resultFilter: z
+          .enum(["succeeded", "partiallySucceeded", "failed", "canceled"])
+          .optional()
+          .describe("Filter by build outcome/result. Use this for 'successful builds', 'failed builds', etc."),
       },
       annotations: {
         readOnlyHint: true,
@@ -249,23 +267,41 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         openWorldHint: true,
       },
     },
-    async ({ project, definitionId, agentPoolName, minTime, maxTime, top, statusFilter }) => {
+    async ({ project, definitionId, definitionNameFilter, agentPoolName, minTime, maxTime, top, statusFilter, resultFilter }) => {
       try {
         const defaultTop = minTime || maxTime ? 500 : 20;
         const resolvedStatus = statusFilter && statusFilter !== "all" ? statusFilter : undefined;
 
         // Azure DevOps API rejects statusFilter=completed with queueTimeDescending.
-        // Use finishTimeDescending when filtering by a completed/terminal status.
+        // Use finishTimeDescending when filtering by a completed/terminal status, or by
+        // result (results only exist on completed builds, so the same rule applies).
         const terminalStatuses = new Set(["completed", "cancelling"]);
         const queryOrder =
-          resolvedStatus && terminalStatuses.has(resolvedStatus)
+          (resolvedStatus && terminalStatuses.has(resolvedStatus)) || resultFilter
             ? "finishTimeDescending"
             : "queueTimeDescending";
 
+        let definitions: string | undefined = definitionId && definitionId > 0 ? String(definitionId) : undefined;
+
+        if (definitionNameFilter) {
+          const pipelinesData = await client.request("_apis/pipelines", { project });
+          const lower = definitionNameFilter.toLowerCase();
+          const matches = (pipelinesData.value ?? []).filter((p: any) =>
+            p.name?.toLowerCase().includes(lower)
+          );
+          if (matches.length === 0) {
+            return jsonResult({
+              error: `No pipeline found with "${definitionNameFilter}" in its name. Call list_pipelines to see available pipelines.`,
+            });
+          }
+          definitions = matches.map((p: any) => p.id).join(",");
+        }
+
         const query: Record<string, any> = {
-          definitions: definitionId && definitionId > 0 ? definitionId : undefined,
+          definitions,
           "$top": top ?? defaultTop,
           statusFilter: resolvedStatus,
+          resultFilter,
           queryOrder,
           minTime,
           maxTime,

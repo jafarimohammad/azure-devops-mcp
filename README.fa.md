@@ -82,7 +82,7 @@
 | `list_agent_pools` | لیست agent poolهای موجود در پروژه |
 | `list_agents` | لیست agentها در همه pool‌ها یا یک pool خاص با وضعیت online/offline و تعداد |
 | `get_last_build` | وضعیت آخرین build — با فیلتر نام pipeline یا نام agent pool |
-| `list_builds` | لیست build‌ها با فیلتر: pipeline، وضعیت، agent pool، و بازه تاریخ (`minTime`/`maxTime`). شامل `webUrl` هر build و پرچم `truncated` که هشدار می‌دهد ممکن است build‌های قدیمی‌تر نزدیک `minTime` به‌خاطر محدودیت `top` حذف شده باشند |
+| `list_builds` | لیست build‌ها با فیلتر: pipeline (با ID یا `definitionNameFilter` برای تطبیق جزئی نام، مثلاً «prod»)، `statusFilter` (وضعیت اجرا) و `resultFilter` (succeeded/failed/canceled)، agent pool، و بازه تاریخ (`minTime`/`maxTime`). شامل `webUrl` هر build و پرچم `truncated` که هشدار می‌دهد ممکن است build‌های قدیمی‌تر نزدیک `minTime` به‌خاطر محدودیت `top` حذف شده باشند |
 | `list_failed_builds` | پیدا کردن build‌های شکست‌خورده در N ساعت گذشته |
 | `get_build` | جزئیات یک build مشخص |
 | `get_build_logs` | دریافت خروجی کنسول یک build (خودکار به ۱۵۰ خط آخر محدود می‌شود). با `errorsOnly=true` فقط خطوط error/warning برگردانده می‌شود — سریع‌تر و کم‌حجم‌تر برای تشخیص علت شکست |
