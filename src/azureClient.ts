@@ -35,6 +35,22 @@ export class AzureDevOpsClient {
     return this.config.defaultProject;
   }
 
+  /** Collection URL (e.g. https://server/Collection). Useful for building human-facing web links. */
+  get orgUrl(): string {
+    return this.config.orgUrl;
+  }
+
+  /**
+   * Build a readable web URL for a build. Uses the project *name* rather than the
+   * GUID that the REST API's _links return — a readable name is far less likely to
+   * be corrupted by weak models when repeated across many table rows.
+   */
+  buildWebUrl(buildId: number | string, project?: string): string | null {
+    const proj = project?.trim() || this.config.defaultProject;
+    if (!proj) return null;
+    return `${this.config.orgUrl}/${encodeURIComponent(proj)}/_build/results?buildId=${buildId}`;
+  }
+
   /**
    * Build a full URL. When `raw` is false (default), a project segment is
    * inserted between the collection URL and the path.

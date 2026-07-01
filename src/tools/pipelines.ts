@@ -90,7 +90,7 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           queueTime: last.queueTime,
           startTime: last.startTime,
           finishTime: last.finishTime,
-          url: last._links?.web?.href,
+          url: client.buildWebUrl(last.id, project) ?? last._links?.web?.href,
         });
       } catch (err) {
         return errorResult(err);
@@ -160,7 +160,7 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
           requestedBy: b.requestedFor?.displayName,
           startTime: b.startTime,
           finishTime: b.finishTime,
-          url: b._links?.web?.href,
+          url: client.buildWebUrl(b.id, project) ?? b._links?.web?.href,
         }));
 
         return jsonResult({
@@ -327,7 +327,9 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         }
 
         const data = await client.request("_apis/build/builds", { project, query });
-        const builds = (data.value ?? []).map(summarizeBuild);
+        const builds = (data.value ?? []).map((b: any) =>
+          summarizeBuild(b, false, client.buildWebUrl(b.id, project))
+        );
         const effectiveTop = top ?? defaultTop;
         const truncated = builds.length >= effectiveTop;
 
@@ -368,7 +370,7 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
     async ({ project, buildId }) => {
       try {
         const data = await client.request(`_apis/build/builds/${buildId}`, { project });
-        return jsonResult(summarizeBuild(data, true));
+        return jsonResult(summarizeBuild(data, true, client.buildWebUrl(data.id, project)));
       } catch (err) {
         return errorResult(err);
       }
@@ -709,7 +711,7 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
   );
 }
 
-function summarizeBuild(b: any, detailed = false) {
+function summarizeBuild(b: any, detailed = false, webUrl?: string | null) {
   const base = {
     id: b.id,
     buildNumber: b.buildNumber,
@@ -722,7 +724,9 @@ function summarizeBuild(b: any, detailed = false) {
     queueTime: b.queueTime,
     startTime: b.startTime,
     finishTime: b.finishTime,
-    webUrl: b._links?.web?.href ?? null,
+    // Prefer a readable project-name URL (passed in) over the GUID-based API link —
+    // readable URLs survive being repeated across many rows by weak models.
+    webUrl: webUrl ?? b._links?.web?.href ?? null,
   };
   if (!detailed) return base;
   return { ...base, reason: b.reason, sourceVersion: b.sourceVersion };

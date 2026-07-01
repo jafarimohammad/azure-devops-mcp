@@ -1,6 +1,6 @@
 {
   "name": "azure-devops-mcp",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "description": "MCP server for Azure DevOps Server 2022 (Repos, Pull Requests, Pipelines) using a Personal Access Token.",
   "type": "module",
   "bin": {
