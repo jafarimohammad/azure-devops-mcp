@@ -224,11 +224,14 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         "raise 'top' or narrow the range if it is true.",
       inputSchema: {
         ...projectArg,
+        // Accept an explicit null (some models send null for "no filter") but keep the
+        // emitted JSON schema a clean single type — .nullish() emits an anyOf/["integer","null"]
+        // shape that breaks strict tool-schema template renderers (e.g. Ollama).
         definitionId: z
-          .number()
-          .int()
-          .nullish()
-          .transform((v) => v ?? undefined)
+          .preprocess(
+            (v) => (v === null ? undefined : v),
+            z.number().int().optional()
+          )
           .describe("Filter by pipeline/definition id."),
         definitionNameFilter: z
           .string()
