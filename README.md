@@ -84,10 +84,10 @@ Ask your AI assistant in plain language — the MCP server handles the Azure Dev
 | `list_agent_pools` | List available agent pools/queues in a project |
 | `list_agents` | List agents across all pools or a specific pool with online/offline status and counts |
 | `get_last_build` | Get the most recent build — filter by pipeline name or agent pool name |
-| `list_builds` | List builds with filters: pipeline, status, agent pool, and date range (`minTime`/`maxTime`) |
+| `list_builds` | List builds with filters: pipeline, status, agent pool, and date range (`minTime`/`maxTime`). Includes `webUrl` per build and a `truncated` flag warning when older builds near `minTime` may be cut off by the `top` limit |
 | `list_failed_builds` | Find failed/partial builds in the last N hours |
 | `get_build` | Get details of a specific build |
-| `get_build_logs` | Fetch console log output of a build (auto-truncated, last 150 lines) |
+| `get_build_logs` | Fetch console log output of a build (auto-truncated, last 150 lines). Set `errorsOnly=true` to return only error/warning lines — much smaller and faster for diagnosing failures |
 | `run_pipeline_by_name` | Find and run a pipeline by name (partial match, no ID needed) |
 | `run_pipeline` | Queue a pipeline run by numeric ID |
 

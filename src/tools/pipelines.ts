@@ -213,7 +213,10 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
         "List builds in a project, optionally filtered by pipeline, status, agent pool, or date range. " +
         "Use minTime/maxTime to count builds in a specific period — e.g. to compare this week vs last week. " +
         "When date filters are used, top is automatically raised to 500 to avoid missing builds. " +
-        "Use agentPoolName to answer 'show builds that ran on agent pool X'.",
+        "Use agentPoolName to answer 'show builds that ran on agent pool X'. " +
+        "Results are ordered newest-first, so with a date range, older builds near minTime may be cut off " +
+        "if there are more builds than 'top' in the range — check the response's 'truncated' field and " +
+        "raise 'top' or narrow the range if it is true.",
       inputSchema: {
         ...projectArg,
         definitionId: z
@@ -286,7 +289,21 @@ export function registerPipelineTools(server: McpServer, client: AzureDevOpsClie
 
         const data = await client.request("_apis/build/builds", { project, query });
         const builds = (data.value ?? []).map(summarizeBuild);
-        return jsonResult({ count: builds.length, minTime: minTime ?? null, maxTime: maxTime ?? null, builds });
+        const effectiveTop = top ?? defaultTop;
+        const truncated = builds.length >= effectiveTop;
+
+        return jsonResult({
+          count: builds.length,
+          truncated,
+          warning: truncated
+            ? `Results were capped at 'top'=${effectiveTop}. Builds are ordered newest-first, so older builds ` +
+              `(closer to minTime=${minTime ?? "N/A"}) may be missing. Re-run with a higher 'top' or a narrower ` +
+              `minTime/maxTime range to see the full period.`
+            : null,
+          minTime: minTime ?? null,
+          maxTime: maxTime ?? null,
+          builds,
+        });
       } catch (err) {
         return errorResult(err);
       }
@@ -666,7 +683,8 @@ function summarizeBuild(b: any, detailed = false) {
     queueTime: b.queueTime,
     startTime: b.startTime,
     finishTime: b.finishTime,
+    webUrl: b._links?.web?.href ?? null,
   };
   if (!detailed) return base;
-  return { ...base, reason: b.reason, sourceVersion: b.sourceVersion, url: b._links?.web?.href };
+  return { ...base, reason: b.reason, sourceVersion: b.sourceVersion };
 }
